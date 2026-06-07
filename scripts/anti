@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Script to launch Antigravity IDE from terminal
+# Resolves paths (e.g., 'anti .') and runs it detached in the background
+
+# Target directory or file (defaults to current directory if empty)
+TARGET="${1:-.}"
+
+# Resolve target to an absolute path if it exists
+if [ -e "$TARGET" ]; then
+    TARGET_ABS=$(realpath "$TARGET")
+else
+    TARGET_ABS="$TARGET"
+fi
+
+# Run antigravity-ide with systemd-run to respect the memory limits configured in Hyprland
+# but run in background/detached so it doesn't lock the terminal.
+systemd-run --user --scope -p MemoryMax=1.5G -p MemoryHigh=1G antigravity-ide "$TARGET_ABS" >/dev/null 2>&1 &
+
+# Alternatively, if systemd-run fails, fall back to direct launch
+if [ $? -ne 0 ]; then
+    nohup antigravity-ide "$TARGET_ABS" >/dev/null 2>&1 &
+fi
+
+echo "🚀 Launching Antigravity IDE at $TARGET_ABS..."

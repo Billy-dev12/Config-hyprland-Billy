@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Script to change wallpaper dynamically and update color theme using Matugen
+# Usage: 
+#   setwall                  # Launches Rofi GUI to select wallpaper
+#   setwall /path/to/img.jpg # Sets wallpaper directly from command line
+
+WALLPAPER_DIR="$HOME/.config/hypr/wallpapers"
+CURRENT_WALLPAPER="$WALLPAPER_DIR/current.jpg"
+MATUGEN="$HOME/.local/bin/matugen"
+
+# Ensure wallpaper directory exists
+mkdir -p "$WALLPAPER_DIR"
+
+# Check if an argument was provided
+if [ -n "$1" ]; then
+    SELECTED_WALLPAPER="$1"
+else
+    # Check if rofi is installed
+    if ! command -v rofi &> /dev/null; then
+        echo "Error: Rofi is not installed. Please specify a wallpaper file: setwall <path_to_image>"
+        exit 1
+    fi
+
+    # Find all image files in wallpaper directory
+    # Only list base names for cleaner Rofi UI
+    WALLPAPERS=$(find "$WALLPAPER_DIR" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) ! -name "current.jpg" -exec basename {} \;)
+
+    if [ -z "$WALLPAPERS" ]; then
+        echo "No wallpapers found in $WALLPAPER_DIR"
+        exit 1
+    fi
+
+    # Show Rofi selection menu
+    CHOICE=$(echo "$WALLPAPERS" | rofi -dmenu -i -p "󰸉 Select Wallpaper")
+
+    # Exit if user cancelled (pressed ESC)
+    if [ -z "$CHOICE" ]; then
+        echo "No wallpaper selected."
+        exit 0
+    fi
+
+    SELECTED_WALLPAPER="$WALLPAPER_DIR/$CHOICE"
+fi
+
+# Resolve absolute path and verify file exists
+SELECTED_WALLPAPER=$(realpath "$SELECTED_WALLPAPER")
+if [ ! -f "$SELECTED_WALLPAPER" ]; then
+    echo "Error: File '$SELECTED_WALLPAPER' not found."
+    exit 1
+fi
+
+echo "🖼️ Setting wallpaper to: $SELECTED_WALLPAPER"
+
+# 1. Update symbolic link
+ln -sf "$SELECTED_WALLPAPER" "$CURRENT_WALLPAPER"
+
+# 2. Run Matugen to update all color schemes
+if [ -f "$MATUGEN" ]; then
+    echo "🎨 Extracting color palette and updating theme templates..."
+    "$MATUGEN" image "$CURRENT_WALLPAPER"
+else
+    echo "⚠️  Matugen executable not found at $MATUGEN"
+fi
+
+# 3. Reload wallpaper daemon (swaybg)
+if command -v swaybg &> /dev/null; then
+    pkill swaybg
+    swaybg -o \* -i "$CURRENT_WALLPAPER" -m fill &
+fi
+
+# 4. Reload Waybar styles
+if pkill -0 waybar &> /dev/null; then
+    pkill -USR2 waybar
+fi
+
+echo "✅ Wallpaper and color palette updated successfully!"

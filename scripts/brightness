@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# Brightness control using brightnessctl (more reliable)
+
+down() {
+brightnessctl set 2%- -q
+brightness=$(brightnessctl get)
+max=$(brightnessctl max)
+percent=$((brightness * 100 / max))
+dunstify -a "BRIGHTNESS" "Decreasing to $percent%" -h int:value:"$percent" -i display-brightness-symbolic -r 2593 -u normal
+}
+
+up() {
+brightnessctl set +2% -q
+brightness=$(brightnessctl get)
+max=$(brightnessctl max)
+percent=$((brightness * 100 / max))
+dunstify -a "BRIGHTNESS" "Increasing to $percent%" -h int:value:"$percent" -i display-brightness-symbolic -r 2593 -u normal
+}
+
+case "$1" in
+  up) up;;
+  down) down;;
+esac
